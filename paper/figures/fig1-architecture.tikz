@@ -1,0 +1,69 @@
+% fig1-architecture.tikz
+% AXI / CARM / ACI three-layer architecture
+
+\begin{tikzpicture}[
+    node distance = 0.7cm,
+    layer/.style = {
+        rectangle, draw=black, thick,
+        minimum width = 9cm,
+        text width    = 8.6cm,
+        align         = center,
+        inner sep     = 8pt
+    },
+    axi/.style  = { layer, fill = gray!12 },
+    carm/.style = { layer, fill = gray!28 },
+    aci/.style  = { layer, fill = gray!6  },
+    mainarrow/.style = { ->, >=Stealth, thick, shorten >=2pt, shorten <=2pt },
+]
+
+%% ── Boxes ────────────────────────────────────────────────────────────────
+\node[axi] (axi) {%
+    \textbf{AXI Component}\\[4pt]
+    \small\itshape Domain knowledge compiled into routing policy $P$
+};
+
+\node[carm, below=of axi] (carm) {%
+    \textbf{CARM Layer}\\[4pt]
+    \small\itshape
+    Routing phase (query-independent):\\[2pt]
+    $\mathcal{A} = \bigl\{\,v \in \mathcal{V}
+        : P\!\left(\mathrm{id}(v)\right) = \mathrm{ALLOW}\,\bigr\}$\\[2pt]
+    Evaluated once; result shared across all heads
+};
+
+\node[aci, below=of carm] (aci) {%
+    \textbf{ACI Component}\\[4pt]
+    \small\itshape
+    Query $q\ \longrightarrow\ $
+    attention over $\mathcal{A}$ only
+    $\ \longrightarrow\ $ output embedding
+};
+
+%% ── Main arrows — labels on the LEFT ────────────────────────────────────
+\draw[mainarrow] (axi.south) -- (carm.north)
+    node[midway, left=6pt, font=\small, align=right]
+        {$P : \mathrm{id}(v)\;\to\;\{\mathrm{ALLOW},\,\mathrm{DENY}\}$};
+
+\draw[mainarrow] (carm.south) -- (aci.north)
+    node[midway, left=6pt, font=\small, align=right]
+        {Accessible set $\mathcal{A}$};
+
+%% ── No-feedback annotation — overlay so it doesn't affect bounding box ──
+\begin{scope}[overlay]
+    \coordinate (nftop) at ([xshift=0.7cm] axi.south east);
+    \coordinate (nfbot) at ([xshift=0.7cm] aci.north east);
+
+    \draw[dashed, gray!60, thick] (nftop) -- (nfbot);
+
+    \draw[gray!60, thick]
+        ([xshift=-0.2cm] nftop) -- ([xshift=0.2cm] nftop);
+    \draw[gray!60, thick]
+        ([xshift=-0.2cm] nfbot) -- ([xshift=0.2cm] nfbot);
+
+    \node[font=\footnotesize\itshape, gray!80!black,
+          text width=2.2cm, align=left,
+          right=0.15cm of $(nftop)!0.5!(nfbot)$]
+        {No feedback\\path};
+\end{scope}
+
+\end{tikzpicture}

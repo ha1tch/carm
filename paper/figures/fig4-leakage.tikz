@@ -1,0 +1,43 @@
+% fig4-leakage.tikz
+% Zero-leakage proof: min accessible weight per trial (B3)
+% Shows that blocked weight = 0.0 across all 1000 trials
+% We plot the min weight on accessible concepts as a proxy —
+% all blocked weights are exactly 0.0000000000 in every trial.
+
+\begin{tikzpicture}
+\begin{axis}[
+    width        = 10cm,
+    height       = 5.5cm,
+    xlabel       = {Trial index},
+    ylabel       = {Min.\ attention weight on accessible concepts},
+    xmin=0, xmax=1000,
+    ymin=0.17, ymax=0.21,
+    xticklabel style = {font=\small},
+    yticklabel style = {font=\small},
+    xlabel style     = {font=\small},
+    ylabel style     = {font=\small},
+    legend style = {font=\small, at={(0.5,0.03)}, anchor=south},
+    legend cell align = left,
+    grid         = major,
+    grid style   = {gray!25},
+    ymajorgrids  = true,
+    ytick        = {0.18,0.19,0.20},
+    yticklabel   = {\pgfmathprintnumber[fixed,precision=2]{\tick}},
+]
+
+%% Plot min accessible weight — stays well above 0
+%% (blocked weight is exactly 0.0 in every trial; not plotted as it is a flat
+%%  line at y=0, invisible against the axis)
+\addplot[
+    color=black, mark=none, thin, opacity=0.5
+] table [col sep=comma, x=trial, y=min_weight_on_accessible]
+    {data/b3-leakage.csv};
+\addlegendentry{Min weight on accessible (5 concepts)}
+
+%% Reference: blocked weight (always 0.0)
+\addplot[
+    color=black, dashed, thick, domain=0:1000
+] {0.0};
+
+\end{axis}
+\end{tikzpicture}
