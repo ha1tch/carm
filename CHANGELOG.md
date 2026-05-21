@@ -2,6 +2,71 @@
 
 All notable changes to this project will be documented here.
 
+## [0.2.15] — 2026-05-20
+
+### Added
+- `PROGRAMME.md` v1.4: new section documenting the June 2025 Prolog
+  proof-of-concept as the ground-truth semantic oracle for the programme;
+  five patient cases formalised as automated regression test targets with
+  expected treatment paths; TOSID 5-tuple taxonomy codes documented with
+  real examples; three-tier KMAC architecture traced to its empirical
+  origin in Prolog execution patterns; automation plan for Stage II
+  regression testing specified
+
+---
+
+## [0.2.14] — 2026-05-20
+
+### Added
+- `make show` target: opens `paper/carm.pdf` using the system PDF viewer
+  (`open` on macOS, `xdg-open` on Linux, `explorer.exe` on Windows);
+  prints a helpful error if the PDF has not been built yet
+
+### Changed
+- `make clean` now also removes pdflatex residual files:
+  `paper/carm.aux`, `paper/carm.log`, `paper/carm.out`, `paper/carm.toc`
+
+---
+
+## [0.2.13] — 2026-05-20
+
+### Fixed
+- `PROGRAMME.md`: removed invented `github.com/ha1tch/kmac` URL — the KMAC
+  repository does not yet exist; replaced with accurate description
+  (specification documented, repository not yet created)
+
+---
+
+## [0.2.12] — 2026-05-20
+
+### Changed
+- `PROGRAMME.md` v1.3: KMAC named as AXI compilation target throughout;
+  overview expanded to name three sibling programmes (TOSID, KMAC, PTAC);
+  Stage I key design decisions updated; Stage II Track A adds KMAC compiler
+  sub-task; Relationship section expanded with October 2025 KMAC specification
+  details (13 primitives, three-tier architecture, VHDL transpilation path,
+  authority/provenance fields)
+- `HORIZONS.md` v1.1: KMAC 13-primitive semitive lattice added as mathematical
+  foundation for semantic distance formalisation; Horizons Stage II updated;
+  KMAC authority/provenance fields connected to item 5 (taxonomy versioning);
+  prerequisite 5 clarified to include KMAC semitive stabilisation
+
+---
+
+## [0.2.11] — 2026-05-20
+
+### Added
+- `HORIZONS.md` — post-programme theoretical territory document covering
+  semantic traversability, bounded epistemic topology, semantic horizon
+  computation, topology engineering, and the Horizons programme structure
+- `PROGRAMME.md` v1.2: five Horizons-readiness adjustments added covering
+  semantic distance instrumentation, TOSIDcoder distance estimation,
+  activation trajectory preservation, AXI semantic distance API, and
+  TOSID taxonomy versioning for drift analysis
+- Horizons programme added to relationship section of PROGRAMME.md
+
+---
+
 ## [0.2.10] — 2026-05-20
 
 ### Fixed

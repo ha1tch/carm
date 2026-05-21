@@ -1,6 +1,6 @@
 # CARM Research Programme
 
-**Version:** 1.1  
+**Version:** 1.4  
 **Date:** 2026-05-20  
 **Author:** Horacio López Barrios
 
@@ -15,8 +15,18 @@ a publishable contribution and each building on prior results. Stages may
 overlap or run in parallel where dependencies allow.
 
 The programme operates within the broader ACI/AXI architectural framework
-and is complementary to the TOSID programme, which develops the semantic
-identifier system that CARM uses for routing.
+and is complementary to three sibling programmes:
+
+- **TOSID programme** (`github.com/ha1tch/tosid-go`): develops the hierarchical
+  semantic identifier system that CARM uses for routing. The full TOSID format
+  is `TTN-XXX-XXX-XXX:XXX-XXX-XXX-XXX`; CARM's 32-bit encoding is a
+  compressed subset.
+- **KMAC programme** (specification in `kmac-new/`; repository not yet created): develops the Knowledge Machine
+  Assembler Code — the policy language and compilation target for the AXI
+  component. KMAC semitives are the primitive vocabulary from which AXI routing
+  policies are expressed and compiled to the 64 KB routing array.
+- **PTAC programme**: the Printed Toroidal Array Computer hardware programme,
+  relevant to Stage III TCAM integration.
 
 ---
 
@@ -49,6 +59,12 @@ identifier system that CARM uses for routing.
 - Identifier isolation (not semantic isolation): CARM excises a TOSID from
   the computation graph. Semantic isolation — preventing proxy-concept
   leakage — is a TOSID taxonomy design concern, not a CARM concern.
+- The AXI routing policy is expressed in KMAC semitives and compiled to the
+  64 KB routing array. KMAC's three-tier architecture (nanosecond direct
+  lookup → microsecond vectorised → millisecond Prolog fallback) defines
+  what AXI compilation means concretely. The KMAC specification (October 2025)
+  supersedes the partial Go prototype (May 2025) as the canonical AXI
+  language definition.
 - 16-bit prefix routing: category-level granularity. Instance-level routing
   requires architectural extension (see Stage II).
 
@@ -170,6 +186,12 @@ This extends the policy language to support rules such as "allow all medical
 concepts except morphine" without requiring a 4 GB full-TOSID index. The
 two-stage lookup preserves near-O(1) performance for the common case (no
 instance-level exceptions) while enabling fine-grained policy where needed.
+
+A parallel sub-task: define a KMAC compiler target that takes a `.kmac` policy
+file (expressed in KMAC semitives) and produces the 64 KB routing array. This
+makes policy authoring independent of the C implementation and enables the
+authority and provenance fields in KMAC assertions to be preserved as audit
+metadata alongside the compiled routing table.
 
 ---
 
@@ -314,6 +336,170 @@ against a Stage III native architecture.
 
 ---
 
+## Reference implementation and ground-truth test cases
+
+### Origin: the Prolog proof-of-concept (June 2025)
+
+The original running implementation of the TOSID/KMAC inference system is a
+SWI-Prolog proof-of-concept (`medical/`) built in June 2025. It implements
+the full TOSID 5-tuple structure across four domains and performs cross-domain
+medical inference. This system is the direct ancestor of:
+
+- The C++ benchmark (`tosid_complex_query.cpp`, October 2025)
+- The Go prototype (`tosid-go`, May 2025; predates the Prolog work in
+  architecture but postdates it in formal TOSID implementation)
+- The KMAC specification's three-tier architecture (observed from how
+  the Prolog system actually executed)
+
+### The five-tuple TOSID structure in actual use
+
+The Prolog system uses `tosid/5` as its central predicate:
+
+```prolog
+tosid(TaxonomyCode, Netmask, Identifier, EntityName, Properties).
+```
+
+Example entries across the four domains:
+
+```prolog
+% Biochemical (Natural Conceptual, Molecular Scale)
+tosid('01', 'B8', 'HEM-GLO-PRT:FE2-OXY-P55', 'Hemoglobin', [
+    domain(biochemical), function(oxygen_transport),
+    contains_element(iron),
+    deficiency_symptoms([anemia, fatigue, shortness_of_breath, pale_skin])
+]).
+
+% Pharmaceutical (Artificial Material, Component Scale)
+tosid('10', 'E4', 'ASP-TAB-325:ACE-SAL-T01', 'Aspirin 325mg Tablet', [
+    domain(pharma), active_ingredient('acetylsalicylic_acid'),
+    indication([pain, fever, inflammation]),
+    cost_per_tablet(0.05)
+]).
+```
+
+The taxonomy codes here are real and informative: `01` = Natural Conceptual,
+`10` = Artificial Material, `11` = Artificial Conceptual, `00` = Natural
+Material. The netmask letter encodes scope: `B8` = Molecular Scale,
+`E4` = Component Scale, `B3` = Organised Knowledge. The CARM 32-bit
+compressed encoding (`0xDDCCVVVV`) is a lossy compression of this full format.
+The reconciliation of the two encodings is a TOSID programme task.
+
+### The five patient cases — ground-truth test corpus
+
+The Prolog system defines five patient cases with deterministic expected
+outputs. These are the canonical ground-truth test cases for the entire
+programme. Any CARM implementation, KMAC compiler, or TOSIDcoder that claims
+to implement medical-domain AXI/ACI inference must produce results consistent
+with these cases.
+
+| Case | Symptoms | Expected treatment path |
+|------|----------|-------------------------|
+| case1 | fatigue, shortness_of_breath, pale_skin | Haemoglobin deficiency → iron supplement (element_replacement) |
+| case2 | headache, fever | Paracetamol 500mg (symptomatic_relief) |
+| case3 | depression, sleep_disorders, fatigue | Serotonin deficiency → mood support supplement (functional_support) |
+| case4 | muscle_cramps, irregular_heartbeat | Magnesium deficiency → Magnesium 400mg (electrolyte_replacement) |
+| case5 | fatigue, memory_problems, weakness | Vitamin B12 deficiency → B12 1000mcg sublingual (vitamin_replacement) |
+
+Each case also produces drug interaction outputs and a daily cost estimate.
+The 70% symptom-overlap threshold used in `symptoms_match_pattern/2` is a
+deliberate design parameter that must be preserved or explicitly justified
+when changed.
+
+### Automation plan
+
+The five patient cases should be encoded as automated regression tests in
+Stage II, running against both the additive-masking C implementation and
+(eventually) a full transformer stack with CARM applied. The test harness
+should:
+
+1. Feed each case's symptom list as the query input
+2. Verify that the expected treatment TOSID is accessible (not blocked)
+3. Verify that blocked-domain concepts (financial, PHI) receive zero
+   attention weight across all five cases
+4. Verify the drug interaction output matches the Prolog ground truth
+5. Verify the cost estimate is within tolerance of the Prolog output
+
+This makes the Prolog system the **semantic oracle** against which all
+subsequent implementations are validated — not just a historical artefact.
+
+### Why the three-tier architecture was not designed top-down
+
+The KMAC specification's three-tier compilation model (nanosecond direct
+lookup → microsecond vectorised → millisecond Prolog fallback) was not
+designed from scratch. It was extracted by observing how the Prolog system
+actually executed:
+
+- `find_treatment_for_symptom/5` tries deficiency lookup first (direct fact
+  retrieval → Tier 1 in KMAC terms)
+- Falls through to `symptom_relieved_by_drug/3` (pattern matching → Tier 2)
+- Falls through to Prolog backward chaining for novel combinations (→ Tier 3)
+
+This lineage matters: the three-tier architecture is empirically grounded,
+not theoretically imposed. It reflects how real medical inference actually
+distributes across query complexity.
+
+---
+
+## Adjustments for Horizons readiness
+
+The following additions to the CARM programme do not change its goals but
+ensure that data and infrastructure produced by CARM is in the right form
+for the Horizons programme. See `HORIZONS.md` for the full theoretical
+context.
+
+### 1. Instrument semantic distance during Stage II adversarial testing
+
+The Stage II adversarial robustness suite should record not just whether
+bypass occurred, but how many inference steps were required to approach the
+forbidden region, and how coherence degraded along the path. For each
+adversarial prompt type, record the trajectory of TOSIDcoder readings
+across generation steps once Stage IV TOSIDcoders are available. This is
+a Stage II/IV integration task producing the first empirical measurements
+of semantic traversal cost.
+
+### 2. Extend TOSIDcoders to output semantic distance estimates
+
+The Stage IV TOSIDcoder specification calls for a probability distribution
+over TOSID concept categories. This should be extended to also output a
+**semantic distance estimate** from the current activation state to each
+TOSID domain boundary — turning the TOSIDcoder from a classifier into a
+navigation instrument.
+
+Training objective extension: in addition to "which concepts does this
+output activate," the model must learn "how far is this output from the
+nearest forbidden attractor." This requires negative examples at varying
+distances from forbidden regions.
+
+### 3. Preserve activation trajectories during Stage II full-stack testing
+
+When applying CARM to a complete transformer block in Stage II Track B,
+preserve intermediate activation states at each layer, not just the final
+output. These activation trajectories are the empirical record of how
+inference traverses the latent space.
+
+Storage estimate: for a 12-layer transformer, 100-token sequence, 768-dim
+activations, one trajectory is approximately 3.5 MB. A corpus of 10,000
+trajectories (5,000 clean, 5,000 adversarial) is approximately 35 GB —
+large but tractable.
+
+### 4. Add a semantic distance API to the AXI component in Stage III/IV
+
+If Stage III produces a CARM-native architecture, the AXI policy engine
+should expose a `semantic_distance(tosid_domain)` query — returning the
+estimated distance from current epistemic state to a given domain boundary.
+This is not needed for CARM's operation but is the primary runtime interface
+the Horizons programme will use.
+
+### 5. Version the TOSID taxonomy for drift analysis
+
+Horizons will study ontology drift — whether effective semantic topology
+changes over time or across contexts. This requires the TOSID taxonomy to
+be versioned and timestamped so that topology changes can be attributed to
+taxonomy changes versus model behaviour changes. The TOSID programme should
+incorporate this requirement.
+
+---
+
 ## Programme dependency graph
 
 ```
@@ -341,16 +527,48 @@ Stage I (complete)
 
 ## Relationship to other programmes
 
-**TOSID programme:** Develops the semantic identifier system and taxonomy.
-CARM uses TOSID identifiers for routing; TOSIDcoders map back into TOSID
-space. The two programmes are complementary and must remain coordinated on
-the identifier specification.
+**TOSID programme** (`github.com/ha1tch/tosid-go`):
+Develops the hierarchical semantic identifier system. The full TOSID format
+(`TTN-XXX-XXX-XXX:XXX-XXX-XXX-XXX`) encodes taxonomy, netmask scope, and
+instance identifier. CARM's 32-bit encoding is a compressed subset (domain
+byte + category byte + 16-bit variant). Coordination required on: identifier
+specification, taxonomy versioning, and reconciliation of the full string
+format with the compressed 32-bit form used in routing.
 
-**PTAC programme:** The Printed Toroidal Array Computer programme is
-relevant to Stage III. TCAM hardware provides a natural physical
-implementation of the O(1) routing table at hardware speed. A CARM-native
-architecture designed for PTAC-class hardware may achieve routing with no
-software overhead.
+**KMAC programme** (specification documented; repository not yet created):
+Develops the Knowledge Machine Assembler Code — the policy language and
+compilation target for the AXI component. Key facts established by the
+October 2025 KMAC specification:
+
+- KMAC is the assembly language for knowledge: primarily machine-generated
+  (99%), human-readable, designed for compilation to native execution.
+- The semitive system (~37 semitives, reducible to 13 primitives) is the
+  primitive vocabulary from which all AXI policies are expressed.
+- The 13 irreducible primitives are: `=`, `NAND`, `P(parthood)`, `C(contact)`,
+  `Near_e`, `before`, `Cause`, `Has`, `Edge(role)`, `Fusion`, `Interval`,
+  `Dist`, `Coh`. Four resist further reduction: `Cause`, `P`, `=`, `C`.
+- Three-tier compilation: nanosecond direct lookup (95% of queries),
+  microsecond vectorised SIMD (4%), millisecond Prolog fallback (1%).
+- Authority and provenance are mandatory assertion fields, providing the
+  audit trail and versioning infrastructure that Horizons item 5 requires.
+- A KMAC-to-VHDL/Verilog transpilation path exists (SEM-REDUCE-05),
+  connecting directly to the PTAC hardware programme for Stage III.
+
+**PTAC programme:**
+The Printed Toroidal Array Computer programme is relevant to Stage III.
+TCAM hardware provides a natural physical implementation of the O(1) routing
+table at hardware speed. The KMAC-to-VHDL transpilation path (October 2025)
+specifies how KMAC semitive-level descriptions compile to synthesisable RTL,
+making the PTAC connection concrete rather than aspirational.
+
+**Horizons programme:**
+The post-CARM theoretical programme investigating semantic traversability,
+bounded epistemic topology, and topology engineering as a governance paradigm.
+The CARM programme produces the empirical ground truth Horizons requires.
+See `HORIZONS.md`. Note: the KMAC 13-primitive minimal set provides a
+concrete mathematical foundation for Horizons' semantic distance
+formalisation — distance in semitive space can be defined over a
+13-dimensional primitive lattice rather than a fuzzy embedding space.
 
 ---
 
@@ -358,5 +576,8 @@ software overhead.
 
 | Version | Date | Notes |
 |---------|------|-------|
+| 1.4 | 2026-05-20 | Prolog proof-of-concept documented as ground-truth oracle; five patient cases formalised as automated regression test targets; three-tier KMAC architecture lineage explained; TOSID 5-tuple taxonomy codes documented |
+| 1.3 | 2026-05-20 | KMAC named as AXI compilation target; TOSID/KMAC/PTAC/Horizons relationship section expanded with October 2025 specification details; 13-primitive semitive reduction and KMAC-to-VHDL path documented |
+| 1.2 | 2026-05-20 | Horizons readiness adjustments added (5 items): semantic distance instrumentation, TOSIDcoder distance estimation, activation trajectory preservation, AXI distance API, TOSID taxonomy versioning |
 | 1.1 | 2026-05-20 | Micro-universe canonical parameters added to Stage II Track A; maximum-affinity and other adversarial query types added to Track B |
 | 1.0 | 2026-05-20 | Initial programme document, extracted from Paper 1 §6 and expanded |

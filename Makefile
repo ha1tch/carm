@@ -32,7 +32,7 @@ DEMO_BIN  = build/carm_demo
 BENCH_BIN = build/carm_benchmark
 MRE_BIN   = build/mre_additive
 
-.PHONY: all test demo bench mre paper version clean help
+.PHONY: all test demo bench mre paper show version clean help
 
 ## ── Default target ─────────────────────────────────────────────────────
 .DEFAULT_GOAL := help
@@ -50,6 +50,7 @@ help:
 	@echo "  bench     Build and run the comprehensive benchmark suite (B1-B7)"
 	@echo "  mre       Build and run the micro-universe MRE (additive masking)"
 	@echo "  paper     Build the PDF paper (requires pdflatex)"
+	@echo "  show      Open paper/carm.pdf in the system PDF viewer"
 	@echo "  version   Print current version"
 	@echo "  clean     Remove build artefacts"
 	@echo "  help      Show this message"
@@ -59,6 +60,7 @@ help:
 	@echo "  make mre           # see CARM in action (hand-verifiable example)"
 	@echo "  make bench > r.csv # run benchmarks and save results"
 	@echo "  make paper         # build paper/carm.pdf"
+	@echo "  make show          # open the paper in your PDF viewer"
 	@echo ""
 
 all: $(TEST_BIN) $(DEMO_BIN) $(BENCH_BIN) $(MRE_BIN)
@@ -117,16 +119,29 @@ paper:
 	@cd paper && pdflatex -interaction=nonstopmode carm.tex > /dev/null
 	@echo "Done: paper/carm.pdf"
 
+## ── Detect OS for PDF viewer ───────────────────────────────────────────
+UNAME := $(shell uname -s 2>/dev/null || echo Windows)
+ifeq ($(UNAME),Darwin)
+  OPEN_CMD = open
+else ifeq ($(UNAME),Linux)
+  OPEN_CMD = xdg-open
+else
+  OPEN_CMD = explorer.exe
+endif
+
+show:
+	@if [ -f paper/carm.pdf ]; then \
+		echo "Opening paper/carm.pdf..."; \
+		$(OPEN_CMD) paper/carm.pdf; \
+	else \
+		echo "paper/carm.pdf not found — run: make paper"; \
+		exit 1; \
+	fi
+
 version:
 	@echo "CARM v$(VERSION)"
 
 clean:
-	@rm -rf build/
-	@rm paper/*.aux
-	@rm paper/*.out
-	@rm paper/*.toc
-	@rm paper/*.log
+	rm -rf build/
+	rm -f paper/carm.aux paper/carm.log paper/carm.out paper/carm.toc
 	@echo "Cleaned."
-
-show:
-	@open paper/carm.pdf
