@@ -1,6 +1,6 @@
 # CARM Research Programme
 
-**Version:** 1.4  
+**Version:** 1.5  
 **Date:** 2026-05-20  
 **Author:** Horacio López Barrios
 
@@ -14,19 +14,22 @@ ecosystem. The programme is structured as four named stages, each producing
 a publishable contribution and each building on prior results. Stages may
 overlap or run in parallel where dependencies allow.
 
-The programme operates within the broader ACI/AXI architectural framework
-and is complementary to three sibling programmes:
+The programme operates within the broader ACI/AXI architectural framework.
+CARM is the bottom layer of a five-layer semantic coordination stack, each
+layer depending on the one below it:
 
-- **TOSID programme** (`github.com/ha1tch/tosid-go`): develops the hierarchical
-  semantic identifier system that CARM uses for routing. The full TOSID format
-  is `TTN-XXX-XXX-XXX:XXX-XXX-XXX-XXX`; CARM's 32-bit encoding is a
-  compressed subset.
-- **KMAC programme** (specification in `kmac-new/`; repository not yet created): develops the Knowledge Machine
-  Assembler Code — the policy language and compilation target for the AXI
-  component. KMAC semitives are the primitive vocabulary from which AXI routing
-  policies are expressed and compiled to the 64 KB routing array.
-- **PTAC programme**: the Printed Toroidal Array Computer hardware programme,
-  relevant to Stage III TCAM integration.
+```
+KOR  — discovery, authority declaration, convergence (DNS-based registry)
+KOD  — translation, migration, enterprise boundary protocols
+KMAC — fact exchange (assertions, confidence, evidence, provenance)
+TOSID — semantic identification (5-tuple, hierarchical, prefix-matchable)
+CARM — routing enforcement at the attention layer  ← this programme
+```
+
+The four layers above CARM are sibling programmes at varying stages of
+readiness. CARM is the only layer with a running implementation and a
+published paper. The layers above it are the governance and coordination
+infrastructure that produces the policies CARM enforces.
 
 ---
 
@@ -527,48 +530,161 @@ Stage I (complete)
 
 ## Relationship to other programmes
 
-**TOSID programme** (`github.com/ha1tch/tosid-go`):
+### Readiness summary
+
+| Programme | Status | Repository |
+|-----------|--------|------------|
+| CARM | Running implementation, published paper | `github.com/ha1tch/carm` |
+| TOSID | Partial Go implementation (compilation errors) | `github.com/ha1tch/tosid-go` |
+| KMAC | Specification documented (Oct 2025); no repository | — |
+| KOD | Design corpus with JS class implementations; no repository | — |
+| KOR | Design specification; no implementation | — |
+| DXP | Research framework; informal proofs; no reference implementation | — |
+| PTAC | Hardware concept and strategy; no implementation | — |
+| Horizons | Theoretical territory; post-programme | see `HORIZONS.md` |
+
+---
+
+### TOSID programme (`github.com/ha1tch/tosid-go`)
+
 Develops the hierarchical semantic identifier system. The full TOSID format
-(`TTN-XXX-XXX-XXX:XXX-XXX-XXX-XXX`) encodes taxonomy, netmask scope, and
-instance identifier. CARM's 32-bit encoding is a compressed subset (domain
-byte + category byte + 16-bit variant). Coordination required on: identifier
-specification, taxonomy versioning, and reconciliation of the full string
-format with the compressed 32-bit form used in routing.
+(`TTN-XXX-XXX-XXX:XXX-XXX-XXX-XXX`) encodes taxonomy code (2 digits),
+netmask scope (1 letter), and a 24-character hierarchical instance identifier.
+Taxonomy codes: `00` Natural Material, `01` Natural Conceptual, `10`
+Artificial Material, `11` Artificial Conceptual. Netmask letters encode
+scale from molecular (`B8`) to cosmic (`A`).
 
-**KMAC programme** (specification documented; repository not yet created):
+CARM's 32-bit encoding (`0xDDCCVVVV`) is a lossy compression: domain byte
+maps to the first taxonomy digit, category byte to the category segment,
+16-bit variant to the instance. Reconciliation of the two encodings is a
+TOSID programme task; the gap does not affect CARM's current correctness
+but matters for full-stack integration.
+
+The Go prototype (`tosid-go`, May 2025) has six compilation errors — all
+mechanical, estimated 2–3 hours to fix. It predates the full TOSID
+specification and implements a subset of the current design.
+
+---
+
+### KMAC programme (specification documented; repository not yet created)
+
 Develops the Knowledge Machine Assembler Code — the policy language and
-compilation target for the AXI component. Key facts established by the
-October 2025 KMAC specification:
+compilation target for the AXI component. KMAC is what AXI policies are
+written in; the 64 KB routing array is what they compile to.
 
-- KMAC is the assembly language for knowledge: primarily machine-generated
-  (99%), human-readable, designed for compilation to native execution.
+Key facts from the October 2025 specification:
+
 - The semitive system (~37 semitives, reducible to 13 primitives) is the
-  primitive vocabulary from which all AXI policies are expressed.
-- The 13 irreducible primitives are: `=`, `NAND`, `P(parthood)`, `C(contact)`,
+  primitive vocabulary from which all AXI policies are expressed. The 13
+  irreducible primitives are: `=`, `NAND`, `P(parthood)`, `C(contact)`,
   `Near_e`, `before`, `Cause`, `Has`, `Edge(role)`, `Fusion`, `Interval`,
   `Dist`, `Coh`. Four resist further reduction: `Cause`, `P`, `=`, `C`.
-- Three-tier compilation: nanosecond direct lookup (95% of queries),
-  microsecond vectorised SIMD (4%), millisecond Prolog fallback (1%).
-- Authority and provenance are mandatory assertion fields, providing the
-  audit trail and versioning infrastructure that Horizons item 5 requires.
+- Three-tier compilation: nanosecond direct lookup (95%), microsecond
+  vectorised SIMD (4%), millisecond Prolog fallback (1%). This architecture
+  was not designed top-down — it was extracted from observing how the June
+  2025 Prolog proof-of-concept actually executed (see Reference implementation
+  section above).
+- Authority and provenance are mandatory assertion fields (`--authority`,
+  `--evidence`, `--valid_from`, `--valid_until`), providing the audit trail
+  and versioning infrastructure that Horizons item 5 requires.
 - A KMAC-to-VHDL/Verilog transpilation path exists (SEM-REDUCE-05),
-  connecting directly to the PTAC hardware programme for Stage III.
+  connecting to the PTAC hardware programme for Stage III.
+- The Go prototype in `tosid-go` implements a subset of KMAC as Go structs;
+  it predates the full specification and should be treated as a prototype,
+  not a reference implementation.
 
-**PTAC programme:**
-The Printed Toroidal Array Computer programme is relevant to Stage III.
-TCAM hardware provides a natural physical implementation of the O(1) routing
-table at hardware speed. The KMAC-to-VHDL transpilation path (October 2025)
-specifies how KMAC semitive-level descriptions compile to synthesisable RTL,
-making the PTAC connection concrete rather than aspirational.
+---
 
-**Horizons programme:**
+### KOD/KOR programmes (design corpus; no implementation)
+
+KOD (KMAC-over-DNS) and KOR (KMAC-over-Registry) are the distributed
+deployment and discovery layer. They answer the question: once you have
+TOSID identifiers and KMAC policies, how do organisations find each other,
+declare their authorities, and exchange semantic facts across organisational
+boundaries without central coordination?
+
+The answer is existing DNS infrastructure. DNS TXT records carry TOSID
+authority declarations and translation endpoint references. KOR is the thin
+resolver/registry client. KMAC flows carry the actual semantic assertions
+between parties once discovery is complete.
+
+**Relevance to CARM:** KOR resolves the AXI policy sourcing question.
+The AXI component is, in a full deployment, a KOR client: it resolves the
+organisation's DNS semantic records to discover authoritative TOSID codes,
+translation mappings, and trust relationships. The routing table is compiled
+from KOR-resolved facts. Policy updates propagate through DNS TTL cycles,
+not retraining.
+
+**Status:** The KOD design corpus (17 documents, late 2025) contains
+~144 JavaScript class implementations, DNS record schemas, and JSON message
+envelopes (FactEnvelope, VoteEnvelope, DecisionQuery, DecisionResponse).
+These are complete enough to guide a Go transcription. No running
+implementation exists. KOR-13 specifies three convergence profiles
+(KOR-C/2PS, KOR-C/3PS, KOR-C/3PS+QM) grounded in the DXP Phase Spectrum
+framework.
+
+**What CARM documentation should say about convergence:** the AXI policy
+update mechanism requires a convergence protocol for cross-organisational
+policy exchange; KOR specifies candidate profiles grounded in the DXP
+framework; the specific profile is a Stage II decision pending KOR reference
+implementation. No commitment to 3PS appears in CARM documentation until
+KOR has a running implementation.
+
+---
+
+### DXP programme (research framework; informal proofs; no reference implementation)
+
+DXP (Distributed Transaction Patterns / Phase Spectrum) is Horatio's
+independent distributed systems research programme. It is not a component
+of the TOSID/KMAC/CARM ecosystem — it is the theoretical foundation that
+KOR's convergence profiles are grounded in.
+
+The Phase Spectrum spans Saga (0.5PS) → 2PS → 3PS → 3PS+QM with pattern
+modifiers (OV, TBS, GA, SC) that compose orthogonally. The aci-D theoretical
+framework characterises what ACID properties each pattern actually provides.
+
+**Readiness:** The conceptual framework and informal 3PS correctness proof
+(`dxp-11`) are sound and have been through multiple self-review rounds. The
+mechanised verification (`dxp-11.WORK_IN_PROGRESS`) is incomplete. No
+reference implementation exists. Schema not frozen. Pre-launch checklist
+has multiple unchecked items.
+
+**August 2025 integration documents** (`dxp-over-kmac-01` and `02`,
+unpublished) provide the first explicit statement of the four-layer semantic
+stack (TOSID → KMAC → KOD → DXP) and sketch how DXP coordination patterns
+would be used in healthcare, finance, and aerospace deployments. The Go
+pseudocode in these documents is illustrative, not runnable — APIs are
+design sketches, not implemented function signatures.
+
+**What CARM documentation should cite from DXP:** the Phase Spectrum
+framework as the theoretical grounding for future convergence protocol
+selection. Nothing more until a reference implementation exists.
+
+---
+
+### PTAC programme
+
+The Printed Toroidal Array Computer programme. Relevant to Stage III:
+TCAM hardware provides a natural physical implementation of the O(1)
+routing table at hardware speed. The KMAC-to-VHDL transpilation path
+(SEM-REDUCE-05, October 2025) specifies how KMAC semitive-level descriptions
+compile to synthesisable RTL, making this connection concrete rather than
+aspirational. No implementation exists.
+
+---
+
+### Horizons programme
+
 The post-CARM theoretical programme investigating semantic traversability,
 bounded epistemic topology, and topology engineering as a governance paradigm.
 The CARM programme produces the empirical ground truth Horizons requires.
-See `HORIZONS.md`. Note: the KMAC 13-primitive minimal set provides a
-concrete mathematical foundation for Horizons' semantic distance
-formalisation — distance in semitive space can be defined over a
-13-dimensional primitive lattice rather than a fuzzy embedding space.
+See `HORIZONS.md`.
+
+The KMAC 13-primitive semitive lattice provides the mathematical foundation
+for Horizons' semantic distance formalisation — distance defined over a
+13-dimensional discrete primitive space rather than continuous embedding
+geometry. The KMAC authority/provenance fields provide the versioning
+infrastructure that Horizons' ontology drift analysis requires.
 
 ---
 
@@ -576,6 +692,7 @@ formalisation — distance in semitive space can be defined over a
 
 | Version | Date | Notes |
 |---------|------|-------|
+| 1.5 | 2026-05-20 | Full five-layer stack documented; KOD/KOR layer added with honest readiness assessment; DXP relationship scoped conservatively (no 3PS commitment); readiness summary table added; overview rewritten to show stack position; KOR as AXI policy source explained |
 | 1.4 | 2026-05-20 | Prolog proof-of-concept documented as ground-truth oracle; five patient cases formalised as automated regression test targets; three-tier KMAC architecture lineage explained; TOSID 5-tuple taxonomy codes documented |
 | 1.3 | 2026-05-20 | KMAC named as AXI compilation target; TOSID/KMAC/PTAC/Horizons relationship section expanded with October 2025 specification details; 13-primitive semitive reduction and KMAC-to-VHDL path documented |
 | 1.2 | 2026-05-20 | Horizons readiness adjustments added (5 items): semantic distance instrumentation, TOSIDcoder distance estimation, activation trajectory preservation, AXI distance API, TOSID taxonomy versioning |

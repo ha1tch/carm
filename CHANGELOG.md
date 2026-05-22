@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented here.
 
+## [0.2.16] — 2026-05-20
+
+### Changed
+- `PROGRAMME.md` v1.5: major expansion of Relationship section
+  - Readiness summary table added for all eight sibling programmes
+  - Overview rewritten to show CARM's position in the five-layer stack
+  - KOD/KOR layer documented: design corpus status, JS implementations,
+    wire formats, KOR as AXI policy source
+  - DXP relationship scoped conservatively: informal proof sound, no
+    reference implementation, no 3PS commitment in CARM documentation
+  - August 2025 DXP-over-KMAC integration documents noted as unpublished
+    programme context, pseudocode not runnable
+  - Full per-programme readiness assessments: TOSID (compilation errors,
+    fixable), KMAC (spec complete, no repo), KOD/KOR (design only),
+    DXP (framework only), PTAC (concept only)
+
+---
+
 ## [0.2.15] — 2026-05-20
 
 ### Added
