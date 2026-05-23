@@ -3,7 +3,7 @@
 **Document status:** Working draft  
 **Context:** Dual-use implications of the CARM mechanism  
 **Relation to CARM paper:** Candidate for Section 6 (Discussion) or standalone position paper  
-**Date:** 2026  
+**Date:** May 22, 2026  
 
 ---
 
